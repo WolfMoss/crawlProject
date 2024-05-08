@@ -2,7 +2,7 @@ import json
 from random import uniform
 from time import sleep
 from typing import Union, Literal
-
+from playwright.sync_api import Page
 from curl_cffi import requests
 
 # 类型控制
@@ -17,6 +17,7 @@ class Base:
     headers: dict = {}
     # 用户cookie
     cookies: dict = {}
+    page:Page
     # 返回指定数据类型
     dataProcessors = {
         'json': lambda resp: resp.json(),
@@ -25,8 +26,8 @@ class Base:
     }
     # 请求方式
     methodProcessors = {
-        'get': requests.get,
-        'post': requests.post
+        'get': lambda page: page.requests.get,
+        'post': lambda page: page.requests.post
     }
 
     def ajax_requests(
@@ -43,18 +44,19 @@ class Base:
         methodProcessor = self.methodProcessors[method]
         for _ in range(retryTimes):
             try:
-                response = methodProcessor(
+                response = self.page.request.get(
                     url=url,
                     headers=self.headers,
-                    cookies=self.cookies,
+                    #cookies=self.cookies,
                     params=params,
                     data=json.dumps(jsonData, ensure_ascii=False, separators=(',', ':')),
-                    timeout=timeOut
+                    #timeout=timeOut
                 )
                 return dataProcessor(response)
             except json.decoder.JSONDecodeError:
                 raise ValueError(f'无法被解析为json格式，错误链接为: {url}')
             except Exception as e:
+                print(response.content.decode('gbk'))
                 sleep(uniform(1, 5))
                 print(
                     f"错误链接: {url}",

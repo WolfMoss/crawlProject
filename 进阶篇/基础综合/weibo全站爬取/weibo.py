@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from csv import DictWriter
@@ -7,14 +8,17 @@ from random import uniform
 from time import sleep
 from typing import Union, Generator
 from urllib.parse import urlparse, parse_qs
+from playwright.sync_api import Playwright, sync_playwright, expect
+from playwright.sync_api import Page
 
 from 进阶篇.基础综合.weibo全站爬取.base import Base
 
 
 class WeiBo(Base):
-    def __init__(self, headers: dict, cookies: dict):
+    def __init__(self, headers: dict, cookies: dict,page:Page):
         self.headers.update(headers)
         self.cookies.update(cookies)
+        self.page=page
         response = self.session.get('https://m.weibo.cn/api/config', cookies=self.cookies, headers=self.headers)
         self.headers['x-xsrf-token'] = response.json()['data']['st']
 
@@ -275,6 +279,7 @@ class WeiBo(Base):
         writer.writeheader()
         num = 0
         for comment in comments:
+            print(comment)
             writer.writerow(comment)
             num += 1
             if num % 100 == 0:
@@ -352,26 +357,59 @@ class WeiBo(Base):
 
 
 if __name__ == '__main__':
-    headers = {}
-    cookies = {}
-    weibo = WeiBo(headers=headers, cookies=cookies)
-    # 用户相册
-    # items = w.user_photo_album('7690783385')
-    # 帖子评论
-    # items = w.post_comments(4931686942905084)
-    # 模糊搜索用户
-    # items = weibo.get_user_info_by_uname('iu')
-    # 帖子搜索
-    # items = weibo.keyword_search('iu')
-    # for i in items:
-    #     print(i)
+    #获取当前代码文件所在的目录
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    #拼接文件路径
+    user_data_dir = os.path.join(current_dir, 'userdata')
 
-    # 保存评论
-    # weibo.save_comments_to_csv(4931686942905084)
-    # 保存相片
-    # weibo.save_user_photo('7690783385')
+    with sync_playwright() as playwright:
+        # browser = playwright.chromium.connect_over_cdp('http://localhost:8899/')
+        # context = browser.contexts[0]
+        browser = playwright.chromium
+        context = browser.launch_persistent_context(
+            user_data_dir=user_data_dir,
+            accept_downloads=True,
+            headless=False
+        )
+        context.add_init_script(path='./stealth.min.js')
+        #登录
+        page = context.new_page()
+        page.goto("https://weibo.com/")
+        # 假设登录成功后页面上会出现用户名元素，例如一个id为'username'的标签
+        dengdai=True
+        while dengdai:
+            page.wait_for_load_state('networkidle')
+            login_button = page.query_selector_all('span:text("立即登录")')
+            if login_button:
+                print("尚未登录")
+                page.wait_for_timeout(1000)
+            else:
+                print("已登录或元素不存在")
+                dengdai=False
+        print("登录成功")
+        #---------------------------
 
-    # 帖子详情
-    # print(weibo.post_info(4931686942905084))
-    # 精确搜索用户
-    # print(weibo.get_user_info_by_id('7690783385'))
+        headers = {}
+        cookies = {}
+        weibo = WeiBo(headers=headers, cookies=cookies,page=page)
+        # 用户相册
+        # items = w.user_photo_album('7690783385')
+        # 帖子评论
+        #items = weibo.post_comments(5018576161079332)
+
+        # 模糊搜索用户
+        # items = weibo.get_user_info_by_uname('iu')
+        # 帖子搜索
+        # items = weibo.keyword_search('iu')
+        # for i in items:
+        #     print(i)
+
+        # 保存评论
+        weibo.save_comments_to_csv(5018576161079332)
+        # 保存相片
+        # weibo.save_user_photo('7690783385')
+
+        # 帖子详情
+        #print(weibo.post_info(4931686942905084))
+        # 精确搜索用户
+        # print(weibo.get_user_info_by_id('7690783385'))

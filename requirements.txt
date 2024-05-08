@@ -1,0 +1,11 @@
+requests~=2.26.0
+PyMySQL~=1.1.0
+lxml~=4.9.3
+urllib3~=1.26.16
+bs4~=0.0.1
+beautifulsoup4~=4.11.1
+Flask~=2.2.5
+playwright~=1.42.0
+tqdm~=4.66.1
+pandas~=1.5.3
+Pillow~=9.5.0
